@@ -592,6 +592,11 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+full = [
+    { name = "numpy" },
+    { name = "pillow" },
+    { name = "pyvista" },
+]
 sim = [
     { name = "numpy" },
     { name = "pillow" },
@@ -614,17 +619,20 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "cadquery", specifier = ">=2.7.0,<3.0.0" },
+    { name = "numpy", marker = "extra == 'full'", specifier = ">=2.2.0,<3.0.0" },
     { name = "numpy", marker = "extra == 'sim'", specifier = ">=2.2.0,<3.0.0" },
     { name = "numpy", marker = "extra == 'viz'", specifier = ">=2.2.0,<3.0.0" },
+    { name = "pillow", marker = "extra == 'full'", specifier = ">=11.1.0,<12.0.0" },
     { name = "pillow", marker = "extra == 'sim'", specifier = ">=11.1.0,<12.0.0" },
     { name = "pillow", marker = "extra == 'viz'", specifier = ">=11.1.0,<12.0.0" },
     { name = "pydantic", specifier = ">=2.11.0,<3.0.0" },
+    { name = "pyvista", marker = "extra == 'full'", specifier = ">=0.46.0,<1.0.0" },
     { name = "pyvista", marker = "extra == 'viz'", specifier = ">=0.46.0,<1.0.0" },
     { name = "pyyaml", specifier = ">=6.0.2,<7.0.0" },
     { name = "rich", specifier = ">=14.0.0,<15.0.0" },
     { name = "typer", specifier = ">=0.16.0,<1.0.0" },
 ]
-provides-extras = ["viz", "sim"]
+provides-extras = ["viz", "sim", "full"]
 
 [package.metadata.requires-dev]
 dev = [
