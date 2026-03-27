@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from dataclasses import replace
 from enum import StrEnum
 from pathlib import Path
 
@@ -14,12 +15,14 @@ from embod.model.manifest import (
     BuildManifest,
     CapabilitiesReport,
     FixtureAssertionSet,
+    SnapshotRecord,
 )
-from embod.runtime import project_build_dir, read_manifest, run_subprocess
+from embod.runtime import project_build_dir, read_manifest, run_subprocess, write_json
 from embod.validators.project import print_report, validate_manifest
 
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_show_locals=False)
 console = Console()
+SUPPORTED_VALIDATION_CHECKS = frozenset({"geometry", "graph", "print", "robot"})
 
 
 class ExportFormat(StrEnum):
@@ -58,6 +61,9 @@ def _ensure_manifest(
 ) -> BuildManifest:
     build_dir = project_build_dir(source, params)
     manifest_path = build_dir / "manifest.json"
+    existing_snapshots: list[SnapshotRecord] = []
+    if manifest_path.exists():
+        existing_snapshots = read_manifest(manifest_path).outputs.snapshots
     if rebuild or not manifest_path.exists():
         run_subprocess(
             [
@@ -70,12 +76,66 @@ def _ensure_manifest(
             ],
             cwd=source.parent,
         )
-    return read_manifest(manifest_path)
+    manifest = read_manifest(manifest_path)
+    if existing_snapshots and not manifest.outputs.snapshots:
+        manifest = replace(
+            manifest,
+            outputs=replace(manifest.outputs, snapshots=existing_snapshots),
+        )
+        write_json(manifest_path, manifest)
+    return manifest
 
 
 def _emit_json(enabled: bool, payload: object) -> None:
     if enabled:
         console.print_json(json.dumps(payload))
+
+
+def _parse_validation_checks(raw: str) -> tuple[str, ...]:
+    checks = tuple(
+        dict.fromkeys(item.strip() for item in raw.split(",") if item.strip())
+    )
+    if not checks:
+        raise typer.BadParameter("Validation checks must not be empty")
+    invalid = sorted(set(checks) - SUPPORTED_VALIDATION_CHECKS)
+    if invalid:
+        expected = ", ".join(sorted(SUPPORTED_VALIDATION_CHECKS))
+        invalid_text = ", ".join(invalid)
+        raise typer.BadParameter(
+            f"Unknown validation checks: {invalid_text}. Expected: {expected}"
+        )
+    return checks
+
+
+def _filter_report(
+    report: DiagnosticsReport, checks: tuple[str, ...]
+) -> DiagnosticsReport:
+    if set(checks) == SUPPORTED_VALIDATION_CHECKS:
+        return report
+    diagnostics = [
+        diagnostic
+        for diagnostic in report.diagnostics
+        if any(diagnostic.code.startswith(f"{check}.") for check in checks)
+    ]
+    return DiagnosticsReport(diagnostics=diagnostics)
+
+
+def _persist_snapshot_record(
+    manifest: BuildManifest,
+    record: SnapshotRecord,
+) -> BuildManifest:
+    existing = [
+        item
+        for item in manifest.outputs.snapshots
+        if (item.scene, item.subject, item.view)
+        != (record.scene, record.subject, record.view)
+    ]
+    updated = replace(
+        manifest,
+        outputs=replace(manifest.outputs, snapshots=[*existing, record]),
+    )
+    write_json(Path(updated.outputs.manifest_path), updated)
+    return updated
 
 
 def _template_contents(name: str, template: str) -> str:
@@ -314,9 +374,10 @@ def validate(
     checks: str = typer.Option("geometry,graph,print,robot", "--checks"),
     param: list[str] | None = PARAM_OPTION,
 ) -> None:
-    _ = checks
     manifest = _ensure_manifest(file.resolve(), _parse_params(param), rebuild=True)
-    report = validate_manifest(manifest)
+    report = _filter_report(
+        validate_manifest(manifest), _parse_validation_checks(checks)
+    )
     if json_output:
         _emit_json(True, report.model_dump())
     else:
@@ -436,6 +497,7 @@ def snapshot(
         view=view,
         output_path=output.resolve() if output is not None else default_output,
     )
+    _persist_snapshot_record(manifest, record)
     if json_output:
         _emit_json(True, record.model_dump())
     else:
@@ -458,6 +520,7 @@ def preview(
     record = create_snapshot(
         manifest, scene=scene, subject=subject, view="iso", output_path=output
     )
+    _persist_snapshot_record(manifest, record)
     if open:
         run_subprocess(["open", record.image_path], cwd=file.parent.resolve())
     console.print(record.image_path)
