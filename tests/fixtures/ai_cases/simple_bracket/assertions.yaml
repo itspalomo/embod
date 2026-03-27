@@ -1,0 +1,10 @@
+expected_project_name: simple_bracket_case
+expected_parts:
+  - bracket
+required_export_formats:
+  - stl
+  - step
+snapshots:
+  - scene: cad
+    subject: bracket
+    view: iso

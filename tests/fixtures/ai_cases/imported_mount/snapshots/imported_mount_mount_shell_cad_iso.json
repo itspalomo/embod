@@ -1,0 +1,19 @@
+{
+  "scene": "cad",
+  "subject": "imported_mount_mount_shell_cad_iso",
+  "view": "iso",
+  "camera_position": [
+    1.4,
+    1.4,
+    1.1
+  ],
+  "camera_target": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "image_size": [
+    960,
+    720
+  ]
+}

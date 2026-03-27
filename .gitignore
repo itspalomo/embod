@@ -2,6 +2,9 @@
 __pycache__/
 *.py[codz]
 *$py.class
+.embod/
+tests/fixtures/ai_cases/**/snapshots/_temp/
+tests/fixtures/ai_cases/**/snapshots/_sim_temp/
 
 # C extensions
 *.so

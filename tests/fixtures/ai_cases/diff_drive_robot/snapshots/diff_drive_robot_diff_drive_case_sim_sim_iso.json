@@ -1,0 +1,19 @@
+{
+  "scene": "sim",
+  "subject": "diff_drive_case",
+  "view": "sim_iso",
+  "camera_position": [
+    1.6,
+    1.6,
+    1.1
+  ],
+  "camera_target": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "image_size": [
+    960,
+    720
+  ]
+}
