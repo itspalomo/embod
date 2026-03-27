@@ -4,6 +4,13 @@ from pathlib import Path
 
 import cadquery as cq
 
+from embod.geometry_pipeline import (
+    apply_brep_operations,
+    brep_source_type,
+    mesh_bounds_and_stats,
+    mesh_operation_manifests,
+    resolve_brep_geometry_source,
+)
 from embod.model.core import (
     Assembly as ProjectAssembly,
 )
@@ -86,21 +93,13 @@ def export_part(
     part: Part,
     *,
     build_dir: Path,
+    project: Project | None = None,
+    source_root: Path | None = None,
 ) -> PartManifest:
     part_dir = ensure_dir(build_dir / "parts" / part.name)
-    step_path = part_dir / f"{part.name}.step"
-    stl_path = part_dir / f"{part.name}.stl"
-    workplane = part.geometry
-    if not isinstance(workplane, cq.Workplane):
-        raise TypeError(f"Part {part.name} geometry must be a cadquery.Workplane")
-    mesh_profile = _effective_mesh_profile(part.mesh_profile)
-    workplane.export(str(step_path))
-    workplane.export(
-        str(stl_path),
-        tolerance=mesh_profile.tolerance_mm,
-        angularTolerance=mesh_profile.angular_tolerance_rad,
-    )
-    shape = workplane.val()
+    source = part.geometry_source
+    if source is None:
+        raise RuntimeError(f"Part {part.name} is missing a geometry source")
     profile_payload: (
         dict[str, str | float | bool | tuple[float, float, float] | None] | None
     )
@@ -117,6 +116,53 @@ def export_part(
             "max_build_volume_mm": part.print_profile.max_build_volume_mm,
             "split_if_needed": part.print_profile.split_if_needed,
         }
+    if source.kind == "imported_stl":
+        if project is None or source_root is None or source.asset_name is None:
+            raise RuntimeError("Imported STL parts need project and source_root")
+        asset = project.imported_assets[source.asset_name]
+        source_path = (source_root / asset.path).resolve()
+        target_path = part_dir / f"{part.name}.stl"
+        copy_file(source_path, target_path)
+        bounds, geometry_stats, is_manifold = mesh_bounds_and_stats(target_path)
+        operations, edit_failures = mesh_operation_manifests(part)
+        if not is_manifold:
+            edit_failures.append("mesh.non_manifold_source")
+        return PartManifest(
+            name=part.name,
+            tags=part.tags,
+            interfaces=part.interfaces,
+            material=part.material,
+            notes=part.notes,
+            bounds=bounds,
+            geometry=geometry_stats,
+            source_type=brep_source_type(source.kind),
+            resolved_source_kind=source.kind,
+            mesh_profile=_mesh_profile_payload(part.mesh_profile),
+            print_profile=profile_payload,
+            operations=operations,
+            edit_failures=edit_failures,
+            exports=[ExportRecord(format="stl", path=str(target_path))],
+        )
+    step_path = part_dir / f"{part.name}.step"
+    stl_path = part_dir / f"{part.name}.stl"
+    workplane = resolve_brep_geometry_source(
+        source,
+        project=project,
+        source_root=source_root,
+    )
+    workplane, operations, edit_failures = apply_brep_operations(
+        workplane,
+        part,
+        project=project if project is not None else Project("standalone"),
+    )
+    mesh_profile = _effective_mesh_profile(part.mesh_profile)
+    workplane.export(str(step_path))
+    workplane.export(
+        str(stl_path),
+        tolerance=mesh_profile.tolerance_mm,
+        angularTolerance=mesh_profile.angular_tolerance_rad,
+    )
+    shape = workplane.val()
     return PartManifest(
         name=part.name,
         tags=part.tags,
@@ -125,9 +171,12 @@ def export_part(
         notes=part.notes,
         bounds=_shape_bounds(shape),
         geometry=_shape_stats(shape),
-        source_type="cadquery",
+        source_type=brep_source_type(source.kind),
+        resolved_source_kind=source.kind,
         mesh_profile=_mesh_profile_payload(part.mesh_profile),
         print_profile=profile_payload,
+        operations=operations,
+        edit_failures=edit_failures,
         exports=[
             ExportRecord(format="step", path=str(step_path)),
             ExportRecord(format="stl", path=str(stl_path)),
@@ -163,9 +212,12 @@ def export_asset(
             exports.append(ExportRecord(format="stl", path=str(stl_path)))
             bounds = _shape_bounds(workplane.val())
             mesh_profile = _mesh_profile_payload(asset.mesh_profile)
+        elif asset.kind == "stl":
+            bounds, _, _ = mesh_bounds_and_stats(source_path)
     return AssetManifest(
         name=asset.name,
         kind=asset.kind,
+        source_kind=f"imported_{asset.kind}",
         path=str(source_path),
         tags=asset.tags,
         printable=asset.printable,

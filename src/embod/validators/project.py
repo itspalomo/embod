@@ -8,6 +8,7 @@ from embod.model.manifest import (
     BuildManifest,
     CollisionManifest,
     EntityBounds,
+    OperationManifest,
     PrintabilityWarning,
     PrintReport,
 )
@@ -55,14 +56,28 @@ def _validate_collision(
     return issues
 
 
-def _validate_print_bounds(bounds: EntityBounds, subject: str) -> list[Diagnostic]:
+def _validate_print_bounds(
+    bounds: EntityBounds,
+    subject: str,
+    print_profile: (
+        dict[str, str | float | bool | tuple[float, float, float] | None] | None
+    ),
+) -> list[Diagnostic]:
     issues: list[Diagnostic] = []
     largest = max(bounds.x_mm, bounds.y_mm, bounds.z_mm)
     smallest = min(bounds.x_mm, bounds.y_mm, bounds.z_mm)
-    if largest > 256.0:
+    limit = 256.0
+    split_if_needed = False
+    if print_profile is not None:
+        build_volume = print_profile.get("max_build_volume_mm")
+        split_value = print_profile.get("split_if_needed")
+        split_if_needed = bool(split_value) if isinstance(split_value, bool) else False
+        if isinstance(build_volume, tuple | list):
+            limit = max(float(item) for item in build_volume)
+    if largest > limit:
         issues.append(
             _warning_or_error(
-                largest > 300.0,
+                largest > (limit + 44.0) and not split_if_needed,
                 "print.oversized_part",
                 "Part exceeds a typical desktop build volume",
                 subject,
@@ -102,12 +117,26 @@ def validate_manifest(manifest: BuildManifest) -> DiagnosticsReport:
                     "geometry.non_solid_part", "Part geometry is not solid", part.name
                 )
             )
-        diagnostics.extend(_validate_print_bounds(part.bounds, part.name))
+        diagnostics.extend(
+            _validate_print_bounds(part.bounds, part.name, part.print_profile)
+        )
         if "printable" in part.tags and part.print_profile is None:
             diagnostics.append(
                 _warn(
                     "print.missing_profile",
                     "Printable part is missing a print profile",
+                    part.name,
+                )
+            )
+        diagnostics.extend(_validate_part_operations(part.name, part.operations))
+        if (
+            part.resolved_source_kind == "imported_stl"
+            and "mesh.non_manifold_source" in part.edit_failures
+        ):
+            diagnostics.append(
+                _error(
+                    "mesh.non_manifold_source",
+                    "Imported STL source is not watertight/manifold",
                     part.name,
                 )
             )
@@ -198,6 +227,63 @@ def validate_manifest(manifest: BuildManifest) -> DiagnosticsReport:
                     )
                 )
     return DiagnosticsReport(diagnostics=diagnostics)
+
+
+def _validate_part_operations(
+    subject: str, operations: list[OperationManifest]
+) -> Iterable[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    for operation in operations:
+        for warning in operation.warnings:
+            if warning == "placement.ambiguous_best_surface":
+                diagnostics.append(
+                    _warn(
+                        warning,
+                        "Automatic placement found multiple similarly ranked surfaces",
+                        subject,
+                    )
+                )
+        for failure in operation.edit_failures:
+            diagnostics.append(_operation_failure_diagnostic(failure, subject))
+    return diagnostics
+
+
+def _operation_failure_diagnostic(code: str, subject: str) -> Diagnostic:
+    messages = {
+        "placement.missing_interface": "Operation references a missing interface",
+        "placement.operation_not_allowed": (
+            "Interface does not allow this operation kind"
+        ),
+        "placement.interface_target_mismatch": (
+            "Interface target does not match the part source"
+        ),
+        "placement.curved_only_surface": (
+            "Requested surface selector is not supported for deterministic placement"
+        ),
+        "placement.no_valid_target_surface": (
+            "No valid placement surface passed the scoring and clearance checks"
+        ),
+        "placement.insufficient_clearance": (
+            "Operation footprint does not fit the target surface with required"
+            " clearance"
+        ),
+        "placement.insufficient_thickness": (
+            "Operation depth exceeds local part thickness"
+        ),
+        "mesh.phase_gated_stl_mods": (
+            "Direct STL modifications are phase-gated and not enabled in this release"
+        ),
+        "mesh.non_manifold_source": "Imported STL source is not watertight/manifold",
+        "geometry.unsupported_operation_tool": (
+            "Operation tool geometry is not supported by the active backend"
+        ),
+    }
+    message = messages.get(code, "Operation could not be applied")
+    if code.startswith("placement.") or code.startswith("mesh.") or code.startswith(
+        "geometry."
+    ):
+        return _error(code, message, subject)
+    return _warn(code, message, subject)
 
 
 def _validate_wheel_ground(

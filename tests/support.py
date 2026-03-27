@@ -11,3 +11,11 @@ def ensure_step_asset(path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     cq.Workplane().box(20.0, 20.0, 8.0).export(str(path))
     return path
+
+
+def ensure_stl_asset(path: Path) -> Path:
+    if path.exists():
+        return path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    cq.Workplane().box(20.0, 20.0, 6.0).export(str(path))
+    return path

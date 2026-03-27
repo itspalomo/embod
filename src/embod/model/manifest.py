@@ -26,6 +26,40 @@ class ExportRecord(SchemaModel):
 
 
 @dataclass(slots=True, frozen=True)
+class PlacementCandidateManifest(SchemaModel):
+    strategy: str
+    selector: str
+    score: float
+    origin_xyz_mm: tuple[float, float, float]
+    origin_rpy_deg: tuple[float, float, float]
+    score_breakdown: dict[str, float]
+    warnings: list[str] = field(default_factory=list)
+    interface: str | None = None
+
+
+@dataclass(slots=True, frozen=True)
+class PlacementDecisionManifest(SchemaModel):
+    strategy: str
+    selector: str
+    score: float
+    origin_xyz_mm: tuple[float, float, float]
+    origin_rpy_deg: tuple[float, float, float]
+    interface: str | None = None
+
+
+@dataclass(slots=True, frozen=True)
+class OperationManifest(SchemaModel):
+    name: str
+    kind: str
+    summary: str
+    status: str
+    warnings: list[str] = field(default_factory=list)
+    edit_failures: list[str] = field(default_factory=list)
+    selected_placement: PlacementDecisionManifest | None = None
+    placement_candidates: list[PlacementCandidateManifest] = field(default_factory=list)
+
+
+@dataclass(slots=True, frozen=True)
 class PartManifest(SchemaModel):
     name: str
     tags: list[str]
@@ -35,10 +69,13 @@ class PartManifest(SchemaModel):
     bounds: EntityBounds
     geometry: GeometryStats
     source_type: str
+    resolved_source_kind: str
     mesh_profile: dict[str, float]
     print_profile: (
         dict[str, str | float | bool | tuple[float, float, float] | None] | None
     )
+    operations: list[OperationManifest] = field(default_factory=list)
+    edit_failures: list[str] = field(default_factory=list)
     exports: list[ExportRecord] = field(default_factory=list)
 
 
@@ -46,6 +83,7 @@ class PartManifest(SchemaModel):
 class AssetManifest(SchemaModel):
     name: str
     kind: str
+    source_kind: str
     path: str
     tags: list[str]
     printable: bool
@@ -139,6 +177,12 @@ class RobotManifest(SchemaModel):
 class InterfaceManifest(SchemaModel):
     name: str
     kind: str
+    target: str | None
+    origin_xyz_mm: tuple[float, float, float]
+    origin_rpy_deg: tuple[float, float, float]
+    surface_selector: str | None
+    allowed_operation_kinds: list[str]
+    clearance_mm: float | None
     params: dict[str, str | float | int | bool]
 
 

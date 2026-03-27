@@ -22,7 +22,9 @@ from embod.validators.project import print_report, validate_manifest
 
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_show_locals=False)
 console = Console()
-SUPPORTED_VALIDATION_CHECKS = frozenset({"geometry", "graph", "print", "robot"})
+SUPPORTED_VALIDATION_CHECKS = frozenset(
+    {"geometry", "graph", "print", "robot", "placement", "mesh"}
+)
 
 
 class ExportFormat(StrEnum):
@@ -63,7 +65,10 @@ def _ensure_manifest(
     manifest_path = build_dir / "manifest.json"
     existing_snapshots: list[SnapshotRecord] = []
     if manifest_path.exists():
-        existing_snapshots = read_manifest(manifest_path).outputs.snapshots
+        try:
+            existing_snapshots = read_manifest(manifest_path).outputs.snapshots
+        except Exception:
+            existing_snapshots = []
     if rebuild or not manifest_path.exists():
         run_subprocess(
             [
@@ -453,6 +458,10 @@ def capabilities(json_output: bool = typer.Option(False, "--json")) -> None:
         extras={
             "viz": viz_available,
             "sim": sim_available,
+            "text": True,
+            "brep_mods": True,
+            "mesh_mods": False,
+            "placement": True,
         },
     )
     if json_output:
@@ -490,6 +499,15 @@ def inspect(
         "robots": [robot.name for robot in manifest.robots],
         "interfaces": [interface.name for interface in manifest.interfaces],
         "params": manifest.metadata.params,
+        "part_details": [
+            {
+                "name": part.name,
+                "source_kind": part.resolved_source_kind,
+                "operation_count": len(part.operations),
+                "operations": [operation.name for operation in part.operations],
+            }
+            for part in manifest.parts
+        ],
     }
     if json_output:
         _emit_json(True, payload)
@@ -516,7 +534,9 @@ def build(
 def validate(
     file: Path,
     json_output: bool = JSON_OPTION,
-    checks: str = typer.Option("geometry,graph,print,robot", "--checks"),
+    checks: str = typer.Option(
+        "geometry,graph,print,robot,placement,mesh", "--checks"
+    ),
     param: list[str] | None = PARAM_OPTION,
 ) -> None:
     manifest = _ensure_manifest(file.resolve(), _parse_params(param), rebuild=True)
