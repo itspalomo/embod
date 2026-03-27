@@ -66,7 +66,13 @@ def build_manifest(
     module = load_project_module(source_path)
     project = resolve_project(module)
     part_manifests = [
-        export_part(part, build_dir=build_dir) for part in project.parts.values()
+        export_part(
+            part,
+            build_dir=build_dir,
+            project=project,
+            source_root=source_path.parent,
+        )
+        for part in project.parts.values()
     ]
     asset_manifests = [
         export_asset(asset, source_root=source_path.parent, build_dir=build_dir)
@@ -142,7 +148,15 @@ def build_manifest(
         ),
         interfaces=[
             InterfaceManifest(
-                name=interface.name, kind=interface.kind, params=interface.params
+                name=interface.name,
+                kind=interface.kind,
+                target=interface.target,
+                origin_xyz_mm=interface.origin_xyz_mm,
+                origin_rpy_deg=interface.origin_rpy_deg,
+                surface_selector=interface.surface_selector,
+                allowed_operation_kinds=interface.allowed_operation_kinds,
+                clearance_mm=interface.clearance_mm,
+                params=interface.params,
             )
             for interface in project.interfaces.values()
         ],

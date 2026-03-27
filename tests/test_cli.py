@@ -6,8 +6,6 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from embod.cli.main import app
-from embod.model.diagnostics import DiagnosticsReport
-from embod.runtime import project_build_dir, read_manifest
 
 
 def test_new_and_inspect(tmp_path: Path) -> None:

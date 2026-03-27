@@ -1,0 +1,9 @@
+expected_project_name: auto_label_case
+expected_parts:
+  - label_plate
+required_export_formats:
+  - stl
+snapshots:
+  - scene: cad
+    subject: label_plate
+    view: iso

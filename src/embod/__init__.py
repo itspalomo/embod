@@ -2,8 +2,11 @@ from embod._version import __version__
 from embod.model.core import (
     Assembly,
     AssemblyComponent,
+    BooleanOp,
     CollisionDef,
+    FeaturePlacement,
     Frame,
+    GeometrySource,
     ImportedAsset,
     InterfaceDef,
     Joint,
@@ -14,14 +17,19 @@ from embod.model.core import (
     Project,
     Robot,
     Sensor,
+    SupportOp,
+    TextOp,
 )
 from embod.params import get_bool_param, get_float_param, get_int_param, get_str_param
 
 __all__ = [
     "Assembly",
     "AssemblyComponent",
+    "BooleanOp",
     "CollisionDef",
+    "FeaturePlacement",
     "Frame",
+    "GeometrySource",
     "ImportedAsset",
     "InterfaceDef",
     "Joint",
@@ -32,6 +40,8 @@ __all__ = [
     "Project",
     "Robot",
     "Sensor",
+    "SupportOp",
+    "TextOp",
     "__version__",
     "get_bool_param",
     "get_float_param",

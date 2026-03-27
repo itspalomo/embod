@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Literal, TypeAlias
 
 Vector3 = tuple[float, float, float]
 
@@ -25,9 +26,79 @@ class MeshProfile:
 
 
 @dataclass(slots=True, frozen=True)
+class GeometrySource:
+    kind: str
+    geometry: object | None = None
+    asset_name: str | None = None
+
+    @classmethod
+    def native_cadquery(cls, geometry: object) -> GeometrySource:
+        return cls(kind="native_cadquery", geometry=geometry)
+
+    @classmethod
+    def imported_step(cls, asset_name: str) -> GeometrySource:
+        return cls(kind="imported_step", asset_name=asset_name)
+
+    @classmethod
+    def imported_stl(cls, asset_name: str) -> GeometrySource:
+        return cls(kind="imported_stl", asset_name=asset_name)
+
+
+@dataclass(slots=True, frozen=True)
+class FeaturePlacement:
+    interface: str | None = None
+    surface_selector: str | None = None
+    offset_mm: Vector3 = (0.0, 0.0, 0.0)
+    rotation_rpy_deg: Vector3 = (0.0, 0.0, 0.0)
+    min_clearance_mm: float | None = None
+
+
+@dataclass(slots=True, frozen=True)
+class TextOp:
+    name: str
+    text: str
+    font_size_mm: float
+    depth_mm: float
+    mode: str = "emboss"
+    font_path: str | None = None
+    halign: Literal["center", "left", "right"] = "center"
+    valign: Literal["center", "top", "bottom"] = "center"
+    placement: FeaturePlacement = field(default_factory=FeaturePlacement)
+
+
+@dataclass(slots=True, frozen=True)
+class BooleanOp:
+    name: str
+    mode: str
+    tool: object
+    placement: FeaturePlacement = field(default_factory=FeaturePlacement)
+
+
+@dataclass(slots=True, frozen=True)
+class SupportOp:
+    name: str
+    style: str
+    width_mm: float
+    height_mm: float
+    thickness_mm: float
+    hole_diameter_mm: float | None = None
+    hole_spacing_mm: float | None = None
+    placement: FeaturePlacement = field(default_factory=FeaturePlacement)
+
+
+GeometryOperation: TypeAlias = TextOp | BooleanOp | SupportOp
+
+
+@dataclass(slots=True, frozen=True)
 class InterfaceDef:
     name: str
     kind: str
+    target: str | None = None
+    origin_xyz_mm: Vector3 = (0.0, 0.0, 0.0)
+    origin_rpy_deg: Vector3 = (0.0, 0.0, 0.0)
+    surface_selector: str | None = None
+    allowed_operation_kinds: list[str] = field(default_factory=list)
+    clearance_mm: float | None = None
     params: dict[str, str | float | int | bool] = field(default_factory=dict)
 
 
@@ -73,12 +144,21 @@ class CollisionDef:
 class Part:
     name: str
     geometry: object
+    geometry_source: GeometrySource | None = None
+    operations: list[GeometryOperation] = field(default_factory=list)
     print_profile: PrintProfile | None = None
     mesh_profile: MeshProfile | None = None
     tags: list[str] = field(default_factory=list)
     interfaces: list[str] = field(default_factory=list)
     material: str | None = None
     notes: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.geometry_source is None:
+            if isinstance(self.geometry, GeometrySource):
+                self.geometry_source = self.geometry
+            else:
+                self.geometry_source = GeometrySource.native_cadquery(self.geometry)
 
 
 @dataclass(slots=True)
@@ -259,6 +339,7 @@ class Project:
         *,
         name: str,
         geometry: object,
+        operations: list[GeometryOperation] | None = None,
         print_profile: PrintProfile | None = None,
         mesh_profile: MeshProfile | None = None,
         tags: list[str] | None = None,
@@ -266,9 +347,16 @@ class Project:
         material: str | None = None,
         notes: str | None = None,
     ) -> Part:
+        geometry_source = (
+            geometry
+            if isinstance(geometry, GeometrySource)
+            else GeometrySource.native_cadquery(geometry)
+        )
         entity = Part(
             name=name,
             geometry=geometry,
+            geometry_source=geometry_source,
+            operations=operations or [],
             print_profile=print_profile,
             mesh_profile=mesh_profile,
             tags=tags or [],
@@ -316,9 +404,25 @@ class Project:
         *,
         name: str,
         kind: str,
+        target: str | None = None,
+        origin_xyz: Vector3 = (0.0, 0.0, 0.0),
+        origin_rpy_deg: Vector3 = (0.0, 0.0, 0.0),
+        surface_selector: str | None = None,
+        allowed_operation_kinds: list[str] | None = None,
+        clearance_mm: float | None = None,
         params: dict[str, str | float | int | bool] | None = None,
     ) -> InterfaceDef:
-        entity = InterfaceDef(name=name, kind=kind, params=params or {})
+        entity = InterfaceDef(
+            name=name,
+            kind=kind,
+            target=target,
+            origin_xyz_mm=origin_xyz,
+            origin_rpy_deg=origin_rpy_deg,
+            surface_selector=surface_selector,
+            allowed_operation_kinds=allowed_operation_kinds or [],
+            clearance_mm=clearance_mm,
+            params=params or {},
+        )
         self.interfaces[name] = entity
         return entity
 
