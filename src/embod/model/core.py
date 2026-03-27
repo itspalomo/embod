@@ -19,6 +19,12 @@ class PrintProfile:
 
 
 @dataclass(slots=True, frozen=True)
+class MeshProfile:
+    tolerance_mm: float = 0.05
+    angular_tolerance_rad: float = 0.05
+
+
+@dataclass(slots=True, frozen=True)
 class InterfaceDef:
     name: str
     kind: str
@@ -68,6 +74,7 @@ class Part:
     name: str
     geometry: object
     print_profile: PrintProfile | None = None
+    mesh_profile: MeshProfile | None = None
     tags: list[str] = field(default_factory=list)
     interfaces: list[str] = field(default_factory=list)
     material: str | None = None
@@ -79,6 +86,7 @@ class ImportedAsset:
     name: str
     path: Path
     kind: str
+    mesh_profile: MeshProfile | None = None
     tags: list[str] = field(default_factory=list)
     printable: bool = False
 
@@ -252,6 +260,7 @@ class Project:
         name: str,
         geometry: object,
         print_profile: PrintProfile | None = None,
+        mesh_profile: MeshProfile | None = None,
         tags: list[str] | None = None,
         interfaces: list[str] | None = None,
         material: str | None = None,
@@ -261,6 +270,7 @@ class Project:
             name=name,
             geometry=geometry,
             print_profile=print_profile,
+            mesh_profile=mesh_profile,
             tags=tags or [],
             interfaces=interfaces or [],
             material=material,
@@ -275,6 +285,7 @@ class Project:
         name: str,
         path: str | Path,
         kind: str,
+        mesh_profile: MeshProfile | None = None,
         tags: list[str] | None = None,
         printable: bool = False,
     ) -> ImportedAsset:
@@ -282,6 +293,7 @@ class Project:
             name=name,
             path=Path(path),
             kind=kind,
+            mesh_profile=mesh_profile,
             tags=tags or [],
             printable=printable,
         )

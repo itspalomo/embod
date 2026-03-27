@@ -143,25 +143,50 @@ def _template_contents(name: str, template: str) -> str:
     if template == "part":
         return f"""import cadquery as cq
 
-from embod import PrintProfile, Project
+from embod import MeshProfile, PrintProfile, Project
 
 project = Project("{title}")
 
-width_mm = 40.0
-height_mm = 20.0
-depth_mm = 4.0
-
+base = cq.Workplane("XY").box(68.0, 34.0, 6.0).edges("|Z").fillet(3.0)
+upright = (
+    cq.Workplane("XY")
+    .box(68.0, 6.0, 42.0)
+    .translate((0.0, 14.0, 18.0))
+    .edges("|Z")
+    .fillet(2.0)
+)
+left_gusset = (
+    cq.Workplane("XZ")
+    .polyline([(-22.0, 0.0), (-22.0, 24.0), (0.0, 0.0)])
+    .close()
+    .extrude(6.0)
+    .translate((0.0, 7.0, 0.0))
+)
+right_gusset = (
+    cq.Workplane("XZ")
+    .polyline([(22.0, 0.0), (22.0, 24.0), (0.0, 0.0)])
+    .close()
+    .extrude(6.0)
+    .translate((0.0, 7.0, 0.0))
+)
+bracket = base.union(upright).union(left_gusset).union(right_gusset)
 bracket = (
-    cq.Workplane()
-    .box(width_mm, height_mm, depth_mm)
-    .faces(">Z")
+    bracket.faces(">Z")
     .workplane()
-    .hole(4.0)
+    .pushPoints([(-20.0, 0.0), (20.0, 0.0)])
+    .cboreHole(5.2, 10.0, 3.0)
+)
+bracket = (
+    bracket.faces(">Y")
+    .workplane()
+    .pushPoints([(-18.0, 10.0), (18.0, 10.0)])
+    .hole(4.3)
 )
 
 project.part(
     name="bracket",
     geometry=bracket,
+    mesh_profile=MeshProfile(tolerance_mm=0.03, angular_tolerance_rad=0.025),
     print_profile=PrintProfile(
         process="fdm",
         material="PETG",
@@ -170,27 +195,72 @@ project.part(
         orientation="flat",
         max_build_volume_mm=(256.0, 256.0, 256.0),
     ),
-    tags=["printable"],
+    tags=["printable", "structural"],
 )
 """
     if template == "assembly":
         return f"""import cadquery as cq
 
-from embod import AssemblyComponent, PrintProfile, Project
+from embod import AssemblyComponent, MeshProfile, PrintProfile, Project
 
 project = Project("{title}")
 
-base = project.part(
-    name="base",
-    geometry=cq.Workplane().box(80.0, 60.0, 4.0),
-    print_profile=PrintProfile(process="fdm", material="PLA"),
+base = (
+    cq.Workplane("XY")
+    .box(96.0, 64.0, 5.0)
+    .edges("|Z")
+    .fillet(6.0)
+    .faces(">Z")
+    .workplane()
+    .pushPoints([(-32.0, -20.0), (-32.0, 20.0), (32.0, -20.0), (32.0, 20.0)])
+    .circle(5.5)
+    .extrude(16.0)
+    .faces(">Z")
+    .workplane(offset=16.0)
+    .pushPoints([(-32.0, -20.0), (-32.0, 20.0), (32.0, -20.0), (32.0, 20.0)])
+    .hole(3.2)
+    .faces(">Z")
+    .workplane()
+    .rect(56.0, 28.0)
+    .cutBlind(-3.0)
+)
+mast = (
+    cq.Workplane("XY")
+    .box(18.0, 42.0, 54.0)
+    .translate((0.0, 0.0, 27.0))
+    .edges("|Z")
+    .fillet(2.0)
+    .faces(">Y")
+    .workplane()
+    .pushPoints([(0.0, 14.0), (0.0, 30.0)])
+    .hole(4.0)
+)
+
+base_plate = project.part(
+    name="base_plate",
+    geometry=base,
+    mesh_profile=MeshProfile(tolerance_mm=0.04, angular_tolerance_rad=0.035),
+    print_profile=PrintProfile(process="fdm", material="PETG"),
+    tags=["printable", "structural"],
+)
+
+sensor_mast = project.part(
+    name="sensor_mast",
+    geometry=mast,
+    mesh_profile=MeshProfile(tolerance_mm=0.03, angular_tolerance_rad=0.025),
+    print_profile=PrintProfile(process="fdm", material="PETG"),
     tags=["printable"],
 )
 
 project.assembly(
     name="demo_assembly",
     components=[
-        AssemblyComponent(name="base_instance", ref=base.name),
+        AssemblyComponent(name="base_plate_instance", ref=base_plate.name),
+        AssemblyComponent(
+            name="sensor_mast_instance",
+            ref=sensor_mast.name,
+            translation_mm=(0.0, 0.0, 2.5),
+        ),
     ],
 )
 """
@@ -199,6 +269,7 @@ project.assembly(
 from embod import (
     AssemblyComponent,
     CollisionDef,
+    MeshProfile,
     PrintProfile,
     Project,
 )
@@ -208,16 +279,73 @@ robot = project.robot("{title}")
 
 wheel = project.part(
     name="wheel",
-    geometry=cq.Workplane().cylinder(24.0, 18.0),
+    geometry=(
+        cq.Workplane("XZ")
+        .circle(32.0)
+        .extrude(14.0, both=True)
+        .faces(">Y")
+        .workplane()
+        .circle(24.0)
+        .cutBlind(-6.0)
+        .faces("<Y")
+        .workplane()
+        .circle(24.0)
+        .cutBlind(-6.0)
+        .faces(">Y")
+        .workplane()
+        .hole(8.0)
+        .faces(">Y")
+        .workplane()
+        .pushPoints([(-14.0, 0.0), (14.0, 0.0), (0.0, 14.0), (0.0, -14.0)])
+        .hole(10.0)
+    ),
+    mesh_profile=MeshProfile(tolerance_mm=0.02, angular_tolerance_rad=0.02),
     print_profile=PrintProfile(process="fdm", material="TPU"),
     tags=["printable", "wheel"],
 )
 
 chassis = project.part(
     name="chassis",
-    geometry=cq.Workplane().box(120.0, 90.0, 18.0),
+    geometry=(
+        cq.Workplane("XY")
+        .box(140.0, 88.0, 16.0)
+        .edges("|Z")
+        .fillet(10.0)
+        .faces(">Z")
+        .workplane()
+        .rect(88.0, 52.0)
+        .cutBlind(-8.0)
+        .faces(">Z")
+        .workplane()
+        .pushPoints([(-46.0, -24.0), (-46.0, 24.0), (46.0, -24.0), (46.0, 24.0)])
+        .circle(6.0)
+        .extrude(12.0)
+        .faces(">Z")
+        .workplane(offset=12.0)
+        .pushPoints([(-46.0, -24.0), (-46.0, 24.0), (46.0, -24.0), (46.0, 24.0)])
+        .hole(3.2)
+    ),
+    mesh_profile=MeshProfile(tolerance_mm=0.04, angular_tolerance_rad=0.035),
     print_profile=PrintProfile(process="fdm", material="PETG"),
     tags=["printable", "structural"],
+)
+
+sensor_mast = project.part(
+    name="sensor_mast",
+    geometry=(
+        cq.Workplane("XY")
+        .box(18.0, 42.0, 54.0)
+        .translate((0.0, 0.0, 27.0))
+        .edges("|Z")
+        .fillet(2.0)
+        .faces(">Y")
+        .workplane()
+        .pushPoints([(0.0, 14.0), (0.0, 30.0)])
+        .hole(4.0)
+    ),
+    mesh_profile=MeshProfile(tolerance_mm=0.03, angular_tolerance_rad=0.025),
+    print_profile=PrintProfile(process="fdm", material="PETG"),
+    tags=["printable", "sensor_mount"],
 )
 
 project.assembly(
@@ -227,36 +355,41 @@ project.assembly(
         AssemblyComponent(
             name="left_wheel_instance",
             ref=wheel.name,
-            translation_mm=(0.0, 48.0, -6.0),
+            translation_mm=(0.0, 62.0, -24.0),
         ),
         AssemblyComponent(
             name="right_wheel_instance",
             ref=wheel.name,
-            translation_mm=(0.0, -48.0, -6.0),
+            translation_mm=(0.0, -62.0, -24.0),
+        ),
+        AssemblyComponent(
+            name="sensor_mast_instance",
+            ref=sensor_mast.name,
+            translation_mm=(36.0, 0.0, 8.0),
         ),
     ],
 )
 
 robot.link(
     name="base_link",
-    parts=[chassis.name],
+    parts=[chassis.name, sensor_mast.name],
     assemblies=["robot_visual"],
-    collision=CollisionDef.box(120.0, 90.0, 18.0),
-    inertial_proxy=CollisionDef.box(120.0, 90.0, 18.0),
-    mass_kg=1.8,
+    collision=CollisionDef.box(140.0, 88.0, 28.0),
+    inertial_proxy=CollisionDef.box(140.0, 88.0, 28.0),
+    mass_kg=2.1,
 )
 robot.link(
     name="left_wheel_link",
     parts=[wheel.name],
-    collision=CollisionDef.cylinder(radius_mm=18.0, length_mm=24.0, axis="y"),
-    mass_kg=0.2,
+    collision=CollisionDef.cylinder(radius_mm=32.0, length_mm=28.0, axis="y"),
+    mass_kg=0.35,
     tags=["wheel"],
 )
 robot.link(
     name="right_wheel_link",
     parts=[wheel.name],
-    collision=CollisionDef.cylinder(radius_mm=18.0, length_mm=24.0, axis="y"),
-    mass_kg=0.2,
+    collision=CollisionDef.cylinder(radius_mm=32.0, length_mm=28.0, axis="y"),
+    mass_kg=0.35,
     tags=["wheel"],
 )
 
@@ -265,7 +398,7 @@ robot.joint(
     parent="base_link",
     child="left_wheel_link",
     joint_type="continuous",
-    origin_xyz=(0.0, 48.0, -6.0),
+    origin_xyz=(0.0, 62.0, -24.0),
     axis_xyz=(0.0, 1.0, 0.0),
 )
 robot.joint(
@@ -273,8 +406,20 @@ robot.joint(
     parent="base_link",
     child="right_wheel_link",
     joint_type="continuous",
-    origin_xyz=(0.0, -48.0, -6.0),
+    origin_xyz=(0.0, -62.0, -24.0),
     axis_xyz=(0.0, 1.0, 0.0),
+)
+
+robot.frame(
+    name="front_camera_frame",
+    parent="base_link",
+    origin_xyz=(54.0, 0.0, 62.0),
+)
+robot.sensor(
+    name="front_camera",
+    kind="rgbd",
+    frame="front_camera_frame",
+    params={{"hfov_deg": 92.0, "vfov_deg": 58.0}},
 )
 """
 

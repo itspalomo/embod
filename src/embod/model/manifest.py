@@ -35,6 +35,7 @@ class PartManifest(SchemaModel):
     bounds: EntityBounds
     geometry: GeometryStats
     source_type: str
+    mesh_profile: dict[str, float]
     print_profile: (
         dict[str, str | float | bool | tuple[float, float, float] | None] | None
     )
@@ -50,6 +51,7 @@ class AssetManifest(SchemaModel):
     printable: bool
     exists: bool
     bounds: EntityBounds | None = None
+    mesh_profile: dict[str, float] | None = None
     exports: list[ExportRecord] = field(default_factory=list)
 
 
