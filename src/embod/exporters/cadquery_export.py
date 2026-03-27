@@ -4,11 +4,14 @@ from pathlib import Path
 
 import cadquery as cq
 
-from embod.model.core import Assembly as ProjectAssembly
+from embod.model.core import (
+    Assembly as ProjectAssembly,
+)
 from embod.model.core import (
     AssemblyComponent,
     CollisionDef,
     ImportedAsset,
+    MeshProfile,
     Part,
     Project,
 )
@@ -22,6 +25,8 @@ from embod.model.manifest import (
     PartManifest,
 )
 from embod.runtime import copy_file, ensure_dir
+
+DEFAULT_MESH_PROFILE = MeshProfile()
 
 
 def _shape_bounds(shape: cq.Shape) -> EntityBounds:
@@ -63,6 +68,20 @@ def _asset_workplane(asset: ImportedAsset, source_root: Path) -> cq.Workplane:
     raise ValueError(f"Asset {asset.name} is not importable into CAD geometry")
 
 
+def _effective_mesh_profile(profile: MeshProfile | None) -> MeshProfile:
+    if profile is None:
+        return DEFAULT_MESH_PROFILE
+    return profile
+
+
+def _mesh_profile_payload(profile: MeshProfile | None) -> dict[str, float]:
+    effective = _effective_mesh_profile(profile)
+    return {
+        "tolerance_mm": effective.tolerance_mm,
+        "angular_tolerance_rad": effective.angular_tolerance_rad,
+    }
+
+
 def export_part(
     part: Part,
     *,
@@ -74,8 +93,13 @@ def export_part(
     workplane = part.geometry
     if not isinstance(workplane, cq.Workplane):
         raise TypeError(f"Part {part.name} geometry must be a cadquery.Workplane")
+    mesh_profile = _effective_mesh_profile(part.mesh_profile)
     workplane.export(str(step_path))
-    workplane.export(str(stl_path))
+    workplane.export(
+        str(stl_path),
+        tolerance=mesh_profile.tolerance_mm,
+        angularTolerance=mesh_profile.angular_tolerance_rad,
+    )
     shape = workplane.val()
     profile_payload: (
         dict[str, str | float | bool | tuple[float, float, float] | None] | None
@@ -102,6 +126,7 @@ def export_part(
         bounds=_shape_bounds(shape),
         geometry=_shape_stats(shape),
         source_type="cadquery",
+        mesh_profile=_mesh_profile_payload(part.mesh_profile),
         print_profile=profile_payload,
         exports=[
             ExportRecord(format="step", path=str(step_path)),
@@ -121,6 +146,7 @@ def export_asset(
     target_path = assets_dir / source_path.name
     exists = source_path.exists()
     bounds: EntityBounds | None = None
+    mesh_profile: dict[str, float] | None = None
     exports: list[ExportRecord] = []
     if exists:
         copy_file(source_path, target_path)
@@ -128,9 +154,15 @@ def export_asset(
         if asset.kind == "step":
             workplane = cq.importers.importStep(str(source_path))
             stl_path = assets_dir / f"{asset.name}.stl"
-            workplane.export(str(stl_path))
+            effective_mesh_profile = _effective_mesh_profile(asset.mesh_profile)
+            workplane.export(
+                str(stl_path),
+                tolerance=effective_mesh_profile.tolerance_mm,
+                angularTolerance=effective_mesh_profile.angular_tolerance_rad,
+            )
             exports.append(ExportRecord(format="stl", path=str(stl_path)))
             bounds = _shape_bounds(workplane.val())
+            mesh_profile = _mesh_profile_payload(asset.mesh_profile)
     return AssetManifest(
         name=asset.name,
         kind=asset.kind,
@@ -139,6 +171,7 @@ def export_asset(
         printable=asset.printable,
         exists=exists,
         bounds=bounds,
+        mesh_profile=mesh_profile,
         exports=exports,
     )
 

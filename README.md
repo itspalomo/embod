@@ -10,10 +10,12 @@ from the CLI.
 This repository contains the MVP:
 
 - Typed Python project model with `Project`, `Part`, `Assembly`, `Robot`,
-  `Link`, `Joint`, `Frame`, `Sensor`, `InterfaceDef`, `PrintProfile`, and
-  `CollisionDef`
+  `Link`, `Joint`, `Frame`, `Sensor`, `InterfaceDef`, `PrintProfile`,
+  `MeshProfile`, and `CollisionDef`
 - `embod` CLI with inspect/build/validate/export/preview/snapshot/simulate
   workflows
+- Configurable STL tessellation and richer starter/example geometry for
+  brackets, assemblies, and diff-drive robots
 - Strict quality gates using `uv`, `ruff`, `mypy --strict`, and `pytest`
 - Fixture-driven tests that simulate AI-authored projects and validate exports,
   diagnostics, and snapshots
