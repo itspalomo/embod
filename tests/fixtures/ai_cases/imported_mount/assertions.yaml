@@ -1,0 +1,9 @@
+expected_project_name: imported_mount_case
+expected_parts:
+  - mount_shell
+required_export_formats:
+  - step
+snapshots:
+  - scene: cad
+    subject: mount_shell
+    view: iso

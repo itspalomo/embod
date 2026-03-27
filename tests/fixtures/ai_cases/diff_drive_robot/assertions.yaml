@@ -1,0 +1,20 @@
+expected_project_name: diff_drive_case
+expected_parts:
+  - chassis
+  - wheel
+expected_assemblies:
+  - robot_visual
+expected_robots:
+  - diff_drive_case
+required_export_formats:
+  - urdf
+snapshots:
+  - scene: cad
+    subject: robot_visual
+    view: iso
+  - scene: collision
+    subject: diff_drive_case
+    view: iso
+  - scene: sim
+    subject: diff_drive_case
+    view: sim_iso
