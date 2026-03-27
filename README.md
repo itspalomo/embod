@@ -51,6 +51,19 @@ AI clients should prefer the machine-readable CLI:
 7. `embod snapshot <project> --scene cad --json`
 8. `embod simulate <project> --smoke`
 
-Client-specific guidance lives in [docs/ai/codex.md](/Users/itspalomo/embod/docs/ai/codex.md),
-[docs/ai/claude-code.md](/Users/itspalomo/embod/docs/ai/claude-code.md), and
-[docs/ai/cursor.md](/Users/itspalomo/embod/docs/ai/cursor.md).
+This repo now also ships tool-native agent guidance:
+
+- [AGENTS.md](/Users/itspalomo/embod/AGENTS.md) for Codex and generic agent clients
+- [CLAUDE.md](/Users/itspalomo/embod/CLAUDE.md),
+  [.claude/skills](/Users/itspalomo/embod/.claude/skills), and
+  [.claude/agents](/Users/itspalomo/embod/.claude/agents) for Claude Code
+- [.cursor/rules](/Users/itspalomo/embod/.cursor/rules) for Cursor
+
+Client-specific guidance lives in
+[docs/ai/codex.md](/Users/itspalomo/embod/docs/ai/codex.md),
+[docs/ai/claude-code.md](/Users/itspalomo/embod/docs/ai/claude-code.md),
+[docs/ai/cursor.md](/Users/itspalomo/embod/docs/ai/cursor.md),
+[docs/ai/agent-workflow.md](/Users/itspalomo/embod/docs/ai/agent-workflow.md),
+[docs/ai/example-queries.md](/Users/itspalomo/embod/docs/ai/example-queries.md),
+and
+[docs/ai/tool-support.md](/Users/itspalomo/embod/docs/ai/tool-support.md).

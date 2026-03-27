@@ -1,0 +1,20 @@
+---
+description: Embod authoring conventions for project files and AI-generated example models.
+globs:
+  - "**/embod_project.py"
+  - "examples/**/*.py"
+  - "tests/fixtures/ai_cases/**/*.py"
+---
+
+When editing Embod model files:
+
+- prefer `Project`, `Part`, `Assembly`, `Robot`, `Link`, `Joint`, `Frame`,
+  `InterfaceDef`, `PrintProfile`, and `CollisionDef`
+- keep manufacturable parts separate from robot semantics
+- use explicit names for `parts`, `assemblies`, `links`, and `joints`
+- add `PrintProfile` for printable parts whenever practical
+- add `CollisionDef` and `mass_kg` for robot links
+- preserve the validation loop: buildable geometry, explicit exports, and
+  snapshot-friendly structure
+
+If the request is underspecified, ask for measurements before changing the file.

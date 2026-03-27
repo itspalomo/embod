@@ -1,0 +1,22 @@
+---
+description: Core Embod workflow for CADQuery, printable parts, assemblies, and robot embodiment tasks.
+alwaysApply: true
+---
+
+Use Embod as a code-first mechanical design system.
+
+- Do not guess critical measurements, units, or interfaces.
+- If missing dimensions, build constraints, or export targets would materially
+  change the model, ask clarifying questions before editing.
+- For multi-part or robot requests, plan first: summarize known requirements,
+  list missing constraints, and propose the part/assembly/link graph.
+- Prefer the Embod CLI over ad hoc reasoning:
+  `inspect`, `validate`, `build`, `export`, `snapshot`, `simulate`.
+- Keep geometry in `mm` and mass in `kg`.
+- Register meaningful objects in the project graph instead of leaving raw
+  CADQuery geometry unregistered.
+- After editing a model, validate it and generate a snapshot when visual intent
+  matters.
+
+Reference:
+[docs/ai/agent-workflow.md](/Users/itspalomo/embod/docs/ai/agent-workflow.md)
