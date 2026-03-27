@@ -10,17 +10,29 @@ Codex support in this repo is implemented through
 - use the machine-readable CLI rather than free-form guessing
 - use snapshots to compare intent against actual geometry
 
+## CLI Setup
+
+Install the repo-local CLI once from the repository root:
+
+```bash
+uv tool install --python 3.11 --editable '.[full]'
+```
+
+That exposes the `embod` command directly. Embod targets Python 3.11, and `uv`
+will download it automatically if needed. Use `uv build` only when you need
+wheel or source-distribution artifacts.
+
 ## Standard Loop
 
-1. `uv run python -m embod capabilities --json`
-2. `uv run python -m embod inspect path/to/embod_project.py --json`
+1. `embod capabilities --json`
+2. `embod inspect path/to/embod_project.py --json`
 3. Ask for missing measurements if needed.
 4. Edit `embod_project.py`
-5. `uv run python -m embod validate path/to/embod_project.py --json`
-6. `uv run python -m embod build path/to/embod_project.py --json`
-7. `uv run python -m embod export path/to/embod_project.py --format step`
-8. `uv run python -m embod snapshot path/to/embod_project.py --scene cad --subject bracket --json`
-9. `uv run python -m embod simulate path/to/embod_project.py --smoke`
+5. `embod validate path/to/embod_project.py --json`
+6. `embod build path/to/embod_project.py --json`
+7. `embod export path/to/embod_project.py --format step`
+8. `embod snapshot path/to/embod_project.py --scene cad --subject bracket --json`
+9. `embod simulate path/to/embod_project.py --smoke`
 
 ## Example Prompt
 

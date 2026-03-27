@@ -18,17 +18,43 @@ This repository contains the MVP:
 - Fixture-driven tests that simulate AI-authored projects and validate exports,
   diagnostics, and snapshots
 
+## Install
+
+Embod ships a console script named `embod`. Install it once from the repo
+root:
+
+```bash
+uv tool install --python 3.11 --editable '.[full]'
+```
+
+That keeps the source checkout editable while exposing `embod` on your `PATH`.
+Embod targets Python 3.11, and `uv` will download it automatically if needed.
+If `uv` warns that its tool bin directory is missing from `PATH`, run:
+
+```bash
+uv tool update-shell
+```
+
+For a smaller install that skips snapshot rendering extras, use:
+
+```bash
+uv tool install --python 3.11 --editable .
+```
+
+`uv build` is for packaging wheels and source distributions, not the normal way
+to run the CLI. Use it when you want artifacts in `dist/`, then install a built
+wheel with `uv tool install --python 3.11 dist/*.whl`.
+
 ## Quickstart
 
 ```bash
-uv sync --all-extras --dev
-uv run embod new demo-bot --template robot
-uv run embod inspect demo-bot/embod_project.py --json
-uv run embod validate demo-bot/embod_project.py --json
-uv run embod build demo-bot/embod_project.py --json
-uv run embod export demo-bot/embod_project.py --format urdf
-uv run embod snapshot demo-bot/embod_project.py --scene cad --json
-uv run embod simulate demo-bot/embod_project.py --smoke
+embod new demo-bot --template robot
+embod inspect demo-bot/embod_project.py --json
+embod validate demo-bot/embod_project.py --json
+embod build demo-bot/embod_project.py --json
+embod export demo-bot/embod_project.py --format urdf
+embod snapshot demo-bot/embod_project.py --scene cad --subject robot_visual --json
+embod simulate demo-bot/embod_project.py --smoke
 ```
 
 ## Quality Bar
@@ -48,7 +74,7 @@ AI clients should prefer the machine-readable CLI:
 4. `embod validate <project> --json`
 5. `embod build <project> --json`
 6. `embod export <project> --format step`
-7. `embod snapshot <project> --scene cad --json`
+7. `embod snapshot <project> --scene cad --subject <part-or-assembly> --json`
 8. `embod simulate <project> --smoke`
 
 This repo now also ships tool-native agent guidance:
